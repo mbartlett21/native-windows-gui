@@ -142,7 +142,7 @@ pub fn full_bind_event_handler<F>(handle: &ControlHandle, f: F) -> EventHandler
         EnumChildWindows(hwnd, Some(handler_children), (&mut handler.handles as *mut Vec<HWND>) as LPARAM);
         EnumChildWindows(hwnd, Some(set_children_subclass), params_ptr as LPARAM);
         SetWindowSubclass(hwnd, callback_fn, subclass_id, callback_ptr as UINT_PTR);
-        Box::from_raw(params_ptr);
+        let _ = Box::from_raw(params_ptr);
     }
 
     handler
@@ -225,7 +225,7 @@ pub fn unbind_event_handler(handler: &EventHandler)
 
     // Finally free the pointer to the pointer to the callback
     unsafe {
-        Box::from_raw(callback_ptr);
+        let _ = Box::from_raw(callback_ptr);
     }
 }
 
@@ -925,6 +925,7 @@ fn tree_data(m: u32, notif_raw: *const NMHDR) -> EventData {
     }
 }
 
+#[cfg(feature = "tree-view")]
 unsafe fn u16_ptr_to_string(ptr: *const u16) -> OsString {
     let len = (0..).take_while(|&i| *ptr.offset(i) != 0).count();
     let slice = std::slice::from_raw_parts(ptr, len);

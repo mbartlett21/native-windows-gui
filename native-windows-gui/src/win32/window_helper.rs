@@ -441,10 +441,12 @@ pub fn set_window_long(handle: HWND, index: c_int, v: usize) {
 
 // Helper to wrap DeferWindowPos somewhat safely
 // Mostly to streamline the usage of the returned HWDP from DeferWindowPos
+#[cfg(feature = "flexbox")]
 pub struct DeferredWindowPositioner {
     handle: winapi::um::winuser::HDWP,
 }
 
+#[cfg(feature = "flexbox")]
 impl DeferredWindowPositioner {
     const MEM_FAIL: &'static str = "Insufficient system resources";
     
@@ -495,6 +497,7 @@ impl DeferredWindowPositioner {
     pub fn end(self) {} // Handled by drop impl
 }
 
+#[cfg(feature = "flexbox")]
 impl std::ops::Drop for DeferredWindowPositioner {
     fn drop(&mut self) {
         use ::winapi::um::winuser::EndDeferWindowPos;
