@@ -1,18 +1,17 @@
-use winapi::shared::windef::HWND;
-use winapi::shared::minwindef::{WPARAM, LPARAM};
-use winapi::um::winuser::{LBS_MULTIPLESEL, LBS_NOSEL, WS_VISIBLE, WS_DISABLED, WS_TABSTOP};
-use crate::win32::window_helper as wh;
-use crate::win32::base_helper::{to_utf16, from_utf16, check_hwnd};
-use crate::{Font, NwgError};
 use super::{ControlBase, ControlHandle};
-use std::cell::{Ref, RefMut, RefCell};
+use crate::win32::base_helper::{check_hwnd, from_utf16, to_utf16};
+use crate::win32::window_helper as wh;
+use crate::{Font, NwgError};
+use std::cell::{Ref, RefCell, RefMut};
 use std::fmt::Display;
-use std::ops::Range;
 use std::mem;
+use std::ops::Range;
+use winapi::shared::minwindef::{LPARAM, WPARAM};
+use winapi::shared::windef::HWND;
+use winapi::um::winuser::{LBS_MULTIPLESEL, LBS_NOSEL, WS_DISABLED, WS_TABSTOP, WS_VISIBLE};
 
 const NOT_BOUND: &'static str = "ListBox is not yet bound to a winapi object";
 const BAD_HANDLE: &'static str = "INTERNAL ERROR: ListBox handle is not HWND!";
-
 
 bitflags! {
     /**
@@ -38,7 +37,7 @@ bitflags! {
 /**
 A list box is a control window that contains a simple list of items from which the user can choose.
 
-Requires the `list-box` feature. 
+Requires the `list-box` feature.
 
 **Builder parameters:**
   * `parent`:          **Required.** The listbox parent container.
@@ -51,7 +50,7 @@ Requires the `list-box` feature.
   * `font`:            The font used for the listbox text
   * `collection`:      The default collections of the listbox
   * `selected_index`:  The default selected index in the listbox collection
-  * `multi_selection`: The collections of indices to set as selected in a multi selection listbox 
+  * `multi_selection`: The collections of indices to set as selected in a multi selection listbox
 
 **Control events:**
   * `OnListBoxSelect`: When the current listbox selection is changed
@@ -75,13 +74,12 @@ fn build_listbox(listb: &mut nwg::ListBox<&'static str>, window: &nwg::Window, f
 
 */
 #[derive(Default)]
-pub struct ListBox<D: Display+Default> {
+pub struct ListBox<D: Display + Default> {
     pub handle: ControlHandle,
-    collection: RefCell<Vec<D>>
+    collection: RefCell<Vec<D>>,
 }
 
-impl<D: Display+Default> ListBox<D> {
-
+impl<D: Display + Default> ListBox<D> {
     pub fn builder<'a>() -> ListBoxBuilder<'a, D> {
         ListBoxBuilder {
             size: (100, 300),
@@ -94,7 +92,7 @@ impl<D: Display+Default> ListBox<D> {
             collection: None,
             selected_index: None,
             multi_selection: Vec::new(),
-            parent: None
+            parent: None,
         }
     }
 
@@ -113,7 +111,7 @@ impl<D: Display+Default> ListBox<D> {
         self.collection.borrow_mut().push(item);
     }
 
-    /// Insert an item in the collection and the control. 
+    /// Insert an item in the collection and the control.
     ///
     /// SPECIAL behaviour! If index is `std::usize::MAX`, the item is added at the end of the collection.
     /// The method will still panic if `index > len` with every other values.
@@ -132,10 +130,14 @@ impl<D: Display+Default> ListBox<D> {
         }
 
         unsafe {
-            wh::send_message(handle, LB_INSERTSTRING, index, mem::transmute(display_os.as_ptr()));
+            wh::send_message(
+                handle,
+                LB_INSERTSTRING,
+                index,
+                mem::transmute(display_os.as_ptr()),
+            );
         }
     }
-
 
     /// Remove the item at the selected index and returns it.
     /// Panic of the index is out of bounds
@@ -152,36 +154,39 @@ impl<D: Display+Default> ListBox<D> {
     /// Return the index of the currencty selected item for single value list box.
     /// Return `None` if no item is selected.
     pub fn selection(&self) -> Option<usize> {
-        use winapi::um::winuser::{LB_GETCURSEL, LB_ERR};
+        use winapi::um::winuser::{LB_ERR, LB_GETCURSEL};
 
         let handle = check_hwnd(&self.handle, NOT_BOUND, BAD_HANDLE);
-        let index = wh::send_message(handle, LB_GETCURSEL , 0, 0);
+        let index = wh::send_message(handle, LB_GETCURSEL, 0, 0);
 
-        if index == LB_ERR { None }
-        else { Some(index as usize) }
+        if index == LB_ERR {
+            None
+        } else {
+            Some(index as usize)
+        }
     }
 
     /// Return the number of selected item in the list box
     /// Returns 0 for single select list box
     pub fn multi_selection_len(&self) -> usize {
-        use winapi::um::winuser::{LB_GETSELCOUNT, LB_ERR};
+        use winapi::um::winuser::{LB_ERR, LB_GETSELCOUNT};
 
         let handle = check_hwnd(&self.handle, NOT_BOUND, BAD_HANDLE);
         match wh::send_message(handle, LB_GETSELCOUNT, 0, 0) {
             LB_ERR => 0,
-            value => value as usize
+            value => value as usize,
         }
     }
 
     /// Return a list index
     /// Returns an empty vector for single select list box.
     pub fn multi_selection(&self) -> Vec<usize> {
-        use winapi::um::winuser::{LB_GETSELCOUNT, LB_GETSELITEMS, LB_ERR};
+        use winapi::um::winuser::{LB_ERR, LB_GETSELCOUNT, LB_GETSELITEMS};
 
         let handle = check_hwnd(&self.handle, NOT_BOUND, BAD_HANDLE);
         let select_count = match wh::send_message(handle, LB_GETSELCOUNT, 0, 0) {
             LB_ERR => usize::max_value(),
-            value => value as usize
+            value => value as usize,
         };
 
         if select_count == usize::max_value() || usize::max_value() == 0 {
@@ -195,7 +200,7 @@ impl<D: Display+Default> ListBox<D> {
             handle,
             LB_GETSELITEMS,
             select_count as WPARAM,
-            indices_buffer.as_mut_ptr() as LPARAM
+            indices_buffer.as_mut_ptr() as LPARAM,
         );
 
         indices_buffer.into_iter().map(|i| i as usize).collect()
@@ -204,19 +209,20 @@ impl<D: Display+Default> ListBox<D> {
     /// Return the display value of the currenctly selected item for single value
     /// Return `None` if no item is selected. This reads the visual value.
     pub fn selection_string(&self) -> Option<String> {
-        use winapi::um::winuser::{LB_GETCURSEL, LB_GETTEXTLEN, LB_GETTEXT, LB_ERR};
         use winapi::shared::ntdef::WCHAR;
+        use winapi::um::winuser::{LB_ERR, LB_GETCURSEL, LB_GETTEXT, LB_GETTEXTLEN};
 
         let handle = check_hwnd(&self.handle, NOT_BOUND, BAD_HANDLE);
         let index = wh::send_message(handle, LB_GETCURSEL, 0, 0);
 
-        if index == LB_ERR { None }
-        else {
+        if index == LB_ERR {
+            None
+        } else {
             let index = index as usize;
-            let length = (wh::send_message(handle, LB_GETTEXTLEN, index, 0) as usize) + 1;  // +1 for the terminating null character
+            let length = (wh::send_message(handle, LB_GETTEXTLEN, index, 0) as usize) + 1; // +1 for the terminating null character
             let mut buffer: Vec<WCHAR> = Vec::with_capacity(length);
-            unsafe { 
-                buffer.set_len(length); 
+            unsafe {
+                buffer.set_len(length);
                 wh::send_message(handle, LB_GETTEXT, index, mem::transmute(buffer.as_ptr()));
             }
 
@@ -287,13 +293,18 @@ impl<D: Display+Default> ListBox<D> {
     /// The search is not case sensitive, so this string can contain any combination of uppercase and lowercase letters.
     /// Return the index of the selected string or None if the search was not successful
     pub fn set_selection_string(&self, value: &str) -> Option<usize> {
-        use winapi::um::winuser::{LB_SELECTSTRING, LB_ERR};
+        use winapi::um::winuser::{LB_ERR, LB_SELECTSTRING};
 
         let handle = check_hwnd(&self.handle, NOT_BOUND, BAD_HANDLE);
         let os_string = to_utf16(value);
 
         unsafe {
-            let index = wh::send_message(handle, LB_SELECTSTRING, 0, mem::transmute(os_string.as_ptr()));
+            let index = wh::send_message(
+                handle,
+                LB_SELECTSTRING,
+                0,
+                mem::transmute(os_string.as_ptr()),
+            );
             if index == LB_ERR {
                 None
             } else {
@@ -321,12 +332,17 @@ impl<D: Display+Default> ListBox<D> {
         self.clear_inner(handle);
 
         let item_count = self.collection.borrow().len();
-        wh::send_message(handle, LB_INITSTORAGE, item_count as WPARAM, (10*item_count) as LPARAM);
+        wh::send_message(
+            handle,
+            LB_INITSTORAGE,
+            item_count as WPARAM,
+            (10 * item_count) as LPARAM,
+        );
 
         for item in self.collection.borrow().iter() {
             let display = format!("{}", item);
             let display_os = to_utf16(&display);
-            
+
             unsafe {
                 wh::send_message(handle, LB_ADDSTRING, 0, mem::transmute(display_os.as_ptr()));
             }
@@ -344,7 +360,7 @@ impl<D: Display+Default> ListBox<D> {
         for item in col.iter() {
             let display = format!("{}", item);
             let display_os = to_utf16(&display);
-            
+
             unsafe {
                 wh::send_message(handle, LB_ADDSTRING, 0, mem::transmute(display_os.as_ptr()));
             }
@@ -368,7 +384,6 @@ impl<D: Display+Default> ListBox<D> {
         wh::send_message(handle, LB_GETCOUNT, 0, 0) as usize
     }
 
-
     //
     // Common control functions
     //
@@ -381,14 +396,18 @@ impl<D: Display+Default> ListBox<D> {
         if font_handle.is_null() {
             None
         } else {
-            Some(Font { handle: font_handle })
+            Some(Font {
+                handle: font_handle,
+            })
         }
     }
 
     /// Set the font of the control
     pub fn set_font(&self, font: Option<&Font>) {
         let handle = check_hwnd(&self.handle, NOT_BOUND, BAD_HANDLE);
-        unsafe { wh::set_window_font(handle, font.map(|f| f.handle), true); }
+        unsafe {
+            wh::set_window_font(handle, font.map(|f| f.handle), true);
+        }
     }
 
     /// Return true if the control currently has the keyboard focus
@@ -400,7 +419,9 @@ impl<D: Display+Default> ListBox<D> {
     /// Set the keyboard focus on the button.
     pub fn set_focus(&self) {
         let handle = check_hwnd(&self.handle, NOT_BOUND, BAD_HANDLE);
-        unsafe { wh::set_focus(handle); }
+        unsafe {
+            wh::set_focus(handle);
+        }
     }
 
     /// Return true if the control user can interact with the control, return false otherwise
@@ -415,7 +436,7 @@ impl<D: Display+Default> ListBox<D> {
         unsafe { wh::set_window_enabled(handle, v) }
     }
 
-    /// Return true if the control is visible to the user. Will return true even if the 
+    /// Return true if the control is visible to the user. Will return true even if the
     /// control is outside of the parent client view (ex: at the position (10000, 10000))
     pub fn visible(&self) -> bool {
         let handle = check_hwnd(&self.handle, NOT_BOUND, BAD_HANDLE);
@@ -460,7 +481,7 @@ impl<D: Display+Default> ListBox<D> {
     }
 
     /// Get mutable access to the inner collection of the list box. Does not update the visual
-    /// control. Call `sync` to update the view. This call refcell.borrow_mut under the hood. 
+    /// control. Call `sync` to update the view. This call refcell.borrow_mut under the hood.
     /// Be sure to drop the value before calling other list box methods
     pub fn collection_mut(&self) -> RefMut<Vec<D>> {
         self.collection.borrow_mut()
@@ -478,9 +499,9 @@ impl<D: Display+Default> ListBox<D> {
 
     /// Winapi flags required by the control
     pub fn forced_flags(&self) -> u32 {
-        use winapi::um::winuser::{LBS_HASSTRINGS, WS_BORDER, WS_VSCROLL, LBS_NOTIFY, WS_CHILD};
+        use winapi::um::winuser::{LBS_HASSTRINGS, LBS_NOTIFY, WS_BORDER, WS_CHILD, WS_VSCROLL};
 
-        LBS_HASSTRINGS | LBS_NOTIFY | WS_BORDER  | WS_CHILD | WS_VSCROLL
+        LBS_HASSTRINGS | LBS_NOTIFY | WS_BORDER | WS_CHILD | WS_VSCROLL
     }
 
     /// Remove all value displayed in the control without touching the rust collection
@@ -488,16 +509,15 @@ impl<D: Display+Default> ListBox<D> {
         use winapi::um::winuser::LB_RESETCONTENT;
         wh::send_message(handle, LB_RESETCONTENT, 0, 0);
     }
-
 }
 
-impl<D: Display+Default> Drop for ListBox<D> {
+impl<D: Display + Default> Drop for ListBox<D> {
     fn drop(&mut self) {
         self.handle.destroy();
     }
 }
 
-pub struct ListBoxBuilder<'a, D: Display+Default> {
+pub struct ListBoxBuilder<'a, D: Display + Default> {
     size: (i32, i32),
     position: (i32, i32),
     enabled: bool,
@@ -508,11 +528,10 @@ pub struct ListBoxBuilder<'a, D: Display+Default> {
     collection: Option<Vec<D>>,
     selected_index: Option<usize>,
     multi_selection: Vec<usize>,
-    parent: Option<ControlHandle>
+    parent: Option<ControlHandle>,
 }
 
-impl<'a, D: Display+Default> ListBoxBuilder<'a, D> {
-
+impl<'a, D: Display + Default> ListBoxBuilder<'a, D> {
     pub fn flags(mut self, flags: ListBoxFlags) -> ListBoxBuilder<'a, D> {
         self.flags = Some(flags);
         self
@@ -573,7 +592,7 @@ impl<'a, D: Display+Default> ListBoxBuilder<'a, D> {
 
         let parent = match self.parent {
             Some(p) => Ok(p),
-            None => Err(NwgError::no_parent("ListBox"))
+            None => Err(NwgError::no_parent("ListBox")),
         }?;
 
         *out = Default::default();
@@ -616,10 +635,9 @@ impl<'a, D: Display+Default> ListBoxBuilder<'a, D> {
 
         Ok(())
     }
-
 }
 
-impl<D: Display+Default> PartialEq for ListBox<D> {
+impl<D: Display + Default> PartialEq for ListBox<D> {
     fn eq(&self, other: &Self) -> bool {
         self.handle == other.handle
     }
