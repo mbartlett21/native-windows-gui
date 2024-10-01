@@ -24,7 +24,9 @@ pub use common_types::*;
 
 pub(crate) mod win32;
 pub use win32::{
- dispatch_thread_events, dispatch_thread_events_with_callback, stop_thread_dispatch, enable_visual_styles, init_common_controls, 
+ dispatch_thread_events, dispatch_thread_events_with_callback,
+ dispatch_thread_events_blocking_with_callback,
+ stop_thread_dispatch, enable_visual_styles, init_common_controls,
  window::{
      EventHandler, RawEventHandler,
      full_bind_event_handler, bind_event_handler, unbind_event_handler,

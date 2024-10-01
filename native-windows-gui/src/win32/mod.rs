@@ -82,6 +82,27 @@ pub fn dispatch_thread_events_with_callback<F>(mut cb: F)
 }
 
 /**
+    Dispatch system events in the current thread AND execute a callback after each message received.
+*/
+pub fn dispatch_thread_events_blocking_with_callback<F>(mut cb: F)
+    where F: FnMut() -> () + 'static
+{
+    use winapi::um::winuser::GetMessageW;
+    use winapi::um::winuser::MSG;
+
+    unsafe {
+        let mut msg: MSG = mem::zeroed();
+        while GetMessageW(&mut msg, ptr::null_mut(), 0, 0) != 0 {
+            if IsDialogMessageW(GetAncestor(msg.hwnd, GA_ROOT), &mut msg) == 0 {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+            cb();
+        }
+    }
+}
+
+/**
     Break the events loop running on the current thread
 */
 pub fn stop_thread_dispatch() {
