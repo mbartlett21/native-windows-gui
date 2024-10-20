@@ -4,7 +4,7 @@ use syn::punctuated::Punctuated;
 #[derive(Debug)]
 pub struct Param {
     pub ident: syn::Ident,
-    pub sep: Token![:],
+    pub _sep: Token![:],
     pub e: syn::Expr,
 }
 
@@ -12,7 +12,7 @@ impl Parse for Param {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(Param {
             ident: input.parse()?,
-            sep: input.parse()?,
+            _sep: input.parse()?,
             e: input.parse()?,
         })
     }

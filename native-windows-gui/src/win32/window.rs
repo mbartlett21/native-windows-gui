@@ -918,7 +918,7 @@ unsafe extern "system" fn process_raw_events(
     let callback: Box<RawCallback> = Box::from_raw(*callback_wrapper_ptr);
 
     let result = callback(hwnd, msg, w, l);
-    Box::into_raw(callback);
+    let _ = Box::into_raw(callback);
 
     match result {
         Some(r) => r,
